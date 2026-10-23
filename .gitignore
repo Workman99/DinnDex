@@ -1,13 +1,7 @@
-# Personal data
 data/
 output/
-
-# Compiled programs
 *.exe
 *.o
 build/
-
-# Python files (later)
-__pycache__/
-.venv/
 .env
+.venv/

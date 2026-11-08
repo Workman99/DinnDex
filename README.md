@@ -165,3 +165,30 @@ Next: Streamlit timeline, gallery, manual editing and thumbnails (Milestone 2),
 then analytics/annual recap (3), opt-in AI with review/caching (4), and local
 embeddings plus measured C++ similarity search (5). Advanced indexing and mosaics
 are optional later work. These future features are deliberately absent here.
+
+## C++ style
+
+C++ code follows the [EECS 280 style guide](https://eecs280staff.github.io/tutorials/style_guide.html),
+using two-space indentation and attached opening braces, informed by the Euchre
+starter files. The configured line limit is 80 characters. The starter files have
+some inconsistent formatting; `.clang-format` selects one consistent convention.
+Public function contracts are documented in the header with Requires/Modifies/Effects comments;
+internal helpers document their contracts at their definitions or declarations.
+
+The checked-in `.clang-format` preserves these formatting choices. With
+`clang-format` installed, format or check the C++ files from the repository root:
+
+```bash
+clang-format -i cpp/include/dinndex/*.hpp cpp/src/*.cpp cpp/tests/*.cpp
+clang-format --dry-run --Werror cpp/include/dinndex/*.hpp cpp/src/*.cpp cpp/tests/*.cpp
+```
+
+Formatting does not check function contracts, naming, or complexity. When reviewing
+C++ changes, also check that:
+
+- RME contracts describe actual preconditions, side effects, failures, and results.
+- Names describe their purpose; nonobvious constants have meaningful names.
+- Functions have one focused purpose and avoid excessive nesting or duplication.
+- Comments explain intent, stay within 80 columns, and retain aligned RME sections.
+
+Python retains Python conventions rather than C++ formatting.

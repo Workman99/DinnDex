@@ -5,6 +5,7 @@ output/
 build/
 .env
 .venv/
+.vscode/launch.json
 # Private archives, local databases, secrets, and generated artifacts
 __pycache__/
 .pytest_cache/

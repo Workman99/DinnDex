@@ -35,7 +35,6 @@ namespace {
   };
 
   // REQUIRES: arguments contains argument_count command-line arguments.
-  // MODIFIES: Nothing.
   // EFFECTS: Returns parsed scan options or throws on invalid arguments.
   ScanOptions parse_options(int argument_count, char **arguments) {
     if ((argument_count != SCAN_ARGUMENT_COUNT &&
@@ -53,7 +52,6 @@ namespace {
     return options;
   }
 
-  // REQUIRES: Nothing.
   // MODIFIES: Creates a new file if path is provided.
   // EFFECTS: Creates exclusive output, or uses stdout. Throws on failure.
   OutputFile open_output(const std::optional<dinndex::fs::path> &path) {

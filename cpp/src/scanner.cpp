@@ -39,8 +39,6 @@ namespace dinndex {
       increment_count(state.summary, "failed");
     }
 
-    // REQUIRES: Nothing.
-    // MODIFIES: Nothing.
     // EFFECTS: Returns a photo record with initially unknown metadata.
     Json make_photo_record(const fs::path &path) {
       return {{"type", "photo"},
@@ -59,8 +57,6 @@ namespace dinndex {
               {"errors", Json::array()}};
     }
 
-    // REQUIRES: Nothing.
-    // MODIFIES: Nothing.
     // EFFECTS: Converts file-clock time to approximate system epoch seconds.
     auto epoch_seconds(fs::file_time_type file_time) {
       using SystemClock = std::chrono::system_clock;

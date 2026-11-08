@@ -9,14 +9,10 @@ namespace dinndex {
   namespace fs = std::filesystem;
   using Json = nlohmann::json;
 
-  // REQUIRES: Nothing.
-  // MODIFIES: Nothing.
   // EFFECTS: Returns whether path has a JPG, JPEG, PNG, or WebP extension,
   //          ignoring case. Does not inspect file contents.
   bool supported_image(const fs::path &path);
 
-  // REQUIRES: Nothing.
-  // MODIFIES: Nothing outside local hashing state; reads the file at path.
   // EFFECTS: Returns its lowercase SHA-256 hash. Throws on read/hash failure.
   std::string sha256(const fs::path &path);
 

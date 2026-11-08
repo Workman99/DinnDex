@@ -9,7 +9,6 @@ namespace {
   namespace fs = std::filesystem;
 
   // REQUIRES: message describes the expectation being checked.
-  // MODIFIES: Nothing.
   // EFFECTS: Throws with message if the expectation is false.
   void check(bool condition, const char *message) {
     if (!condition) {
@@ -17,8 +16,6 @@ namespace {
     }
   }
 
-  // REQUIRES: Nothing.
-  // MODIFIES: Nothing.
   // EFFECTS: Verifies extension matching, case handling, and exclusions.
   void test_supported_extensions() {
     check(dinndex::supported_image("Dinner.JpG"), "case-insensitive JPEG");

@@ -20,9 +20,9 @@ namespace {
       "Usage: dinndex scan SOURCE [--output MANIFEST.jsonl]\n";
 
   struct FileCloser {
-    // REQUIRES: file is a valid open stream.
-    // MODIFIES: The stream's resources.
-    // EFFECTS: Closes file when its owning smart pointer is destroyed.
+    // REQUIRES: file points to an open stream.
+    // MODIFIES: The stream pointed to by file.
+    // EFFECTS: Closes the stream. Does not report closing errors.
     void operator()(FILE *file) const noexcept {
       std::fclose(file);
     }
@@ -34,8 +34,11 @@ namespace {
     std::optional<dinndex::fs::path> output;
   };
 
-  // REQUIRES: arguments contains argument_count command-line arguments.
-  // EFFECTS: Returns parsed scan options or throws on invalid arguments.
+  // REQUIRES: arguments contains argument_count null-terminated argument
+  //           strings, including the program name.
+  // EFFECTS: Returns the source and optional output path from a scan command.
+  //          Throws std::invalid_argument if the command syntax is invalid.
+  //          Does not check whether the paths exist or are accessible.
   ScanOptions parse_options(int argument_count, char **arguments) {
     if ((argument_count != SCAN_ARGUMENT_COUNT &&
          argument_count != OUTPUT_ARGUMENT_COUNT) ||
@@ -52,8 +55,11 @@ namespace {
     return options;
   }
 
-  // MODIFIES: Creates a new file if path is provided.
-  // EFFECTS: Creates exclusive output, or uses stdout. Throws on failure.
+  // MODIFIES: The filesystem entry at *path, if path has a value.
+  // EFFECTS: Returns an owning stream for a newly created file at *path.
+  //          Never overwrites an existing entry. Returns an empty OutputFile
+  //          if path has no value. Throws if creation/opening fails; a newly
+  //          created empty file may remain after a stream-opening failure.
   OutputFile open_output(const std::optional<dinndex::fs::path> &path) {
     if (!path) {
       return OutputFile{};
@@ -73,9 +79,10 @@ namespace {
     return file;
   }
 
-  // REQUIRES: output is null (stdout) or a valid writable stream.
-  // MODIFIES: output or stdout.
-  // EFFECTS: Writes one JSON line. Throws on output failure.
+  // REQUIRES: output is null or points to an open writable stream.
+  // MODIFIES: The stream pointed to by output, or std::cout if output is null.
+  // EFFECTS: Appends record as one JSON line, replacing invalid UTF-8.
+  //          Throws on a write failure; partial output may remain.
   void write_record(const dinndex::Json &record, FILE *output) {
     const auto line =
         record.dump(-1, ' ', false, dinndex::Json::error_handler_t::replace) +
@@ -92,9 +99,9 @@ namespace {
     }
   }
 
-  // REQUIRES: output is null (stdout) or a valid writable stream.
-  // MODIFIES: output or stdout.
-  // EFFECTS: Flushes pending output. Throws on failure.
+  // REQUIRES: output is null or points to an open writable stream.
+  // MODIFIES: The stream pointed to by output, or std::cout if output is null.
+  // EFFECTS: Flushes pending output to its destination. Throws on failure.
   void flush_output(FILE *output) {
     if (output) {
       if (std::fflush(output) != 0) {
@@ -108,9 +115,12 @@ namespace {
     }
   }
 
-  // REQUIRES: Nothing; invalid paths are reported by exceptions.
-  // MODIFIES: Output file/stdout and stderr; reads the source tree.
-  // EFFECTS: Runs a scan and returns its status. Throws on fatal errors.
+  // MODIFIES: The requested output file or std::cout, and std::cerr.
+  // EFFECTS: Writes photo/error records and a final scan summary to the
+  //          selected output. Reports progress and the summary on std::cerr.
+  //          Returns SUCCESS if no files/traversals failed, or PARTIAL_SCAN
+  //          otherwise. Throws on fatal errors; partial output may remain.
+  //          Does not alter source files.
   int run_scan(const ScanOptions &options) {
     auto output = open_output(options.output);
     std::size_t processed_photo_count = 0;
@@ -129,9 +139,11 @@ namespace {
   }
 }  // namespace
 
-// REQUIRES: argc and argv have the usual C++ command-line representation.
-// MODIFIES: stdout, stderr, and the requested output file; reads source files.
-// EFFECTS: Displays help or runs a scan. Returns a status for fatal errors.
+// REQUIRES: argc and argv have the standard command-line representation.
+// MODIFIES: std::cout, std::cerr, and the requested output file.
+// EFFECTS: Displays help or scans the requested directory. Returns 0 on
+//          success, 1 on invalid syntax/fatal error, or 2 if a completed scan
+//          reports file/traversal failures. Does not alter source files.
 int main(int argc, char **argv) {
   if (argc == 2 &&
       (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h")) {

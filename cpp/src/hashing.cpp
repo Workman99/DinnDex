@@ -15,9 +15,11 @@ namespace dinndex {
     using DigestContext =
         std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)>;
 
-    // REQUIRES: input is open and context has been initialized for SHA-256.
-    // MODIFIES: input and the digest context.
-    // EFFECTS: Hashes the stream in chunks. Throws on read or hash failure.
+    // REQUIRES: context points to an active SHA-256 digest context.
+    //           input is an open input stream positioned at the data to hash.
+    // MODIFIES: input, *context.
+    // EFFECTS: Updates the digest with bytes from input through EOF.
+    //          Throws on a read or digest-update failure.
     void hash_stream(std::istream &input, EVP_MD_CTX *context) {
       std::array<char, HASH_BUFFER_SIZE> buffer{};
       while (input) {
@@ -33,9 +35,10 @@ namespace dinndex {
       }
     }
 
-    // REQUIRES: context holds an initialized, updated SHA-256 computation.
-    // MODIFIES: The digest context.
-    // EFFECTS: Finalizes the hash and returns lowercase hex. Throws on failure.
+    // REQUIRES: context points to an active SHA-256 digest context.
+    // MODIFIES: *context.
+    // EFFECTS: Finalizes the digest and returns its lowercase hex string.
+    //          Throws if finalization fails.
     std::string finish_hash(EVP_MD_CTX *context) {
       unsigned char digest[EVP_MAX_MD_SIZE];
       unsigned int digest_length = 0;

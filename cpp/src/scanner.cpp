@@ -20,16 +20,18 @@ namespace dinndex {
       std::unordered_map<std::string, std::string> first_path_by_hash;
     };
 
-    // REQUIRES: summary[field] is an integer counter.
+    // REQUIRES: summary[field] is an integer counter that can be incremented
+    //           without overflowing an int.
     // MODIFIES: summary.
-    // EFFECTS: Increments the named counter by one.
+    // EFFECTS: Increases the named counter by one.
     void increment_count(Json &summary, const char *field) {
       summary[field] = summary[field].get<int>() + 1;
     }
 
-    // REQUIRES: emit is callable.
-    // MODIFIES: state.summary and any state modified by emit.
-    // EFFECTS: Emits a traversal error and counts it as a failure.
+    // REQUIRES: emit is callable and state is a valid scan state.
+    // MODIFIES: state.summary and entities modified by emit.
+    // EFFECTS: Emits a traversal-error record for path and message, then
+    //          increases the failure count. Propagates callback exceptions.
     void report_error(const fs::path &path, const std::string &message,
                       ScanState &state, const RecordCallback &emit) {
       emit(Json{{"type", "error"},
@@ -39,7 +41,8 @@ namespace dinndex {
       increment_count(state.summary, "failed");
     }
 
-    // EFFECTS: Returns a photo record with initially unknown metadata.
+    // EFFECTS: Returns an initial photo record identifying path, with unknown
+    //          metadata, status "ok", and no errors. Does not access the file.
     Json make_photo_record(const fs::path &path) {
       return {{"type", "photo"},
               {"schema_version", MANIFEST_SCHEMA_VERSION},
@@ -57,7 +60,8 @@ namespace dinndex {
               {"errors", Json::array()}};
     }
 
-    // EFFECTS: Converts file-clock time to approximate system epoch seconds.
+    // EFFECTS: Returns approximate whole seconds since the system-clock epoch
+    //          corresponding to file_time.
     auto epoch_seconds(fs::file_time_type file_time) {
       using SystemClock = std::chrono::system_clock;
       const auto system_time =
@@ -69,10 +73,12 @@ namespace dinndex {
           .count();
     }
 
-    // REQUIRES: record was created by make_photo_record.
-    // MODIFIES: record; reads the file at path.
-    // EFFECTS: Adds file/image metadata and hash. Throws on file access failure
-    //          or a size/mtime change during processing.
+    // REQUIRES: record has the structure returned by make_photo_record.
+    // MODIFIES: record.
+    // EFFECTS: Adds file size, modification time, SHA-256, and available image
+    //          metadata. Records metadata-extraction failures in record.
+    //          Throws on file/hash failure or a detected size/mtime change;
+    //          fields already added remain. Does not alter the file.
     void populate_photo_record(const fs::path &path, Json &record) {
       const auto size = fs::file_size(path);
       const auto modified_before = fs::last_write_time(path);
@@ -86,9 +92,12 @@ namespace dinndex {
       }
     }
 
-    // REQUIRES: record contains a successfully computed SHA-256 string.
-    // MODIFIES: record and state.
-    // EFFECTS: Remembers the first path for a hash or marks/counts a duplicate.
+    // REQUIRES: record is an object with a SHA-256 string; state is a valid
+    //           scan state.
+    // MODIFIES: record, state.
+    // EFFECTS: Remembers path as the first source if the hash is new.
+    //          Otherwise,
+    //          sets duplicate_of to the first source and increments duplicates.
     void record_duplicate(const fs::path &path, Json &record,
                           ScanState &state) {
       const auto hash = record["sha256"].get<std::string>();
@@ -101,10 +110,11 @@ namespace dinndex {
       increment_count(state.summary, "duplicates");
     }
 
-    // REQUIRES: emit is callable.
-    // MODIFIES: state and any state modified by emit; reads path.
-    // EFFECTS: Processes and emits one photo, recording file errors.
-    //          Propagates callback exceptions separately from file errors.
+    // REQUIRES: emit is callable and state is a valid scan state.
+    // MODIFIES: state and entities modified by emit.
+    // EFFECTS: Emits one photo record for path, including metadata/hash or
+    //          file errors. Updates image, failure, and duplicate counts.
+    //          Propagates callback exceptions. Does not alter the file.
     void process_photo(const fs::path &path, ScanState &state,
                        const RecordCallback &emit) {
       Json record = make_photo_record(path);
@@ -124,17 +134,20 @@ namespace dinndex {
       emit(record);
     }
 
-    // REQUIRES: emit is callable.
-    // MODIFIES: state and any state modified by emit; reads directory.
-    // EFFECTS: Recursively visits entries. Reports directory access failures
-    //          without terminating the scan of sibling directories.
+    // REQUIRES: emit is callable and state is a valid scan state.
+    // MODIFIES: state and entities modified by emit.
+    // EFFECTS: Visits directory and descendants, emitting photo/error records.
+    //          Skips symlinks/nonimages and updates summary counts.
+    //          Reports access failures without abandoning sibling directories.
+    //          Propagates callback exceptions. Does not alter source files.
     void walk_directory(const fs::path &directory, ScanState &state,
                         const RecordCallback &emit);
 
-    // REQUIRES: emit is callable.
-    // MODIFIES: state and callback output; reads entry and its descendants.
-    // EFFECTS: Skips symlinks/nonimages, descends into directories, and
-    //          processes supported files. Reports entry-status errors.
+    // REQUIRES: emit is callable and state is a valid scan state.
+    // MODIFIES: state and entities modified by emit.
+    // EFFECTS: Processes a supported file or scans a directory recursively.
+    //          Counts symlinks/nonimages as skipped and reports status errors.
+    //          Propagates callback exceptions. Does not alter source files.
     void process_entry(const fs::directory_entry &entry, ScanState &state,
                        const RecordCallback &emit) {
       std::error_code error_code;

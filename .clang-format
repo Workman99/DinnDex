@@ -1,0 +1,29 @@
+# DinnDex C++ formatting, informed by the EECS 280 Euchre starter files.
+# The starter files contain minor inconsistencies; this config normalizes them.
+BasedOnStyle: Google
+Language: Cpp
+Standard: c++17
+
+# Two-space blocks, attached braces, and the project's chosen line limit.
+ColumnLimit: 80
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+BreakBeforeBraces: Attach
+NamespaceIndentation: All
+AccessModifierOffset: -2
+
+# Match declarations such as const Card &card and Player *player.
+PointerAlignment: Right
+DerivePointerAlignment: false
+
+# Expand function bodies and control flow, except empty functions.
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+MaxEmptyLinesToKeep: 1
+
+# Preserve RME contracts and existing include order/grouping.
+ReflowComments: false
+SortIncludes: Never
+IncludeBlocks: Preserve
